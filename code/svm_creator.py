@@ -1,7 +1,7 @@
 #packages
 from sklearn import svm
 from skimage.util import img_as_float
-from skimage.util import io
+from skimage import io
 import numpy as np
 import pickle
 
@@ -20,7 +20,7 @@ for i in range(uu_num):
    else:
       img = str(i)
 
-   gt_image = img_as_float(io.imread('..\data\\training\gt_image_2\uu_0000' + img + '.png'))
+   gt_image = img_as_float(io.imread('..\data\\training\gt_image_2\uu_road_0000' + img + '.png'))
    gt_images.append(image)
 
 
@@ -46,4 +46,6 @@ svm_model = svm.SVC()
 svm.fit(X,y)
 svm.support_vectors_
 
-s = pickle.dump(svm)
+output = open('svm_model.pkl','wb')
+pickle.dump(svm, output)
+output.close()
