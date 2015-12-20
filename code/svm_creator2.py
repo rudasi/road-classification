@@ -120,9 +120,11 @@ def slic_data():
       if i < uu_num_train:
          img = io.imread(training_files[i])
          gt_img = img_as_float(io.imread(training_files_gt[i]))
+         print i+1, training_files[i], training_files_gt[i]
       else:
          img = io.imread(validation_files[i-uu_num_train])
          gt_img = img_as_float(io.imread(validation_files_gt[i-uu_num_train]))
+         print i+1, validation_files[i], validation_files_gt[i]
       #gt_img = img_as_float(io.imread('../data/training/gt_image_2/uu_road_0000' + img_name + '.png'))
       img_hsv = color.rgb2hsv(img)
       img_ycbcr = cv2.cvtColor(img,cv2.COLOR_BGR2YCR_CB)
@@ -288,7 +290,8 @@ def svm_predict(case,svm_classifier):
 
 if __name__=="__main__":
    create_files()
-   weights = [0.8,1,1.2,1.4,1.6,1.8,2.0,2.4,2.6,3]
+   #weights = [0.8,1,1.2,1.4,1.6,1.8,2.0,2.4,2.6,3]
+   weights = [0.6]
    for w in weights:
       print "Running with weight w:%f" %w
       initialise_lists()
