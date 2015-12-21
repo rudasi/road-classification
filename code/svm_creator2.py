@@ -30,15 +30,19 @@ images_train_indices = []
 #image files
 input_files = []
 output_files = []
-total_num_files = 286
-training = 171
-validation = 29
+total_num_files = 289
+training = 172
+validation = 30
+testing = 87
 training_files = []
 training_files_gt = []
 validation_files = []
 validation_files_gt = []
+testing_files = []
+testing_files_gt = []
 uu_num_train = training
-uu_num_test = validation
+uu_num_valid = validation
+uu_num_test = testing
 
 def create_files():
    global input_files
@@ -47,6 +51,8 @@ def create_files():
    global training_files_gt
    global validation_files
    global validation_files_gt
+   global testing_files
+   global test_files_gt
 
    for i in range(95):
       img = ''
@@ -73,13 +79,16 @@ def create_files():
          img = str(i)
       input_files.append('../data/training/image_2/uu_0000'+img+'.png')
       output_files.append('../data/training/gt_image_2/uu_road_0000'+img+'.png')
-   temp = random.sample(range(286),training+validation)
+   temp = random.sample(range(total_num_files),training+validation+testing)
    for i in temp[:training]:
       training_files.append(input_files[i])
       training_files_gt.append(output_files[i])
    for i in temp[training:training+validation]:
       validation_files.append(input_files[i])
       validation_files_gt.append(output_files[i])
+   for i in temp[training+validation:training+validation+testing]:
+      testing_files.append(input_files[i])
+      testing_files_gt.append(output_files[i])
 
 def initialise_lists():
     global images_train
@@ -102,12 +111,8 @@ def slic_data():
    global images_train_filtered
    global images_train_indices
    global gt_images_train
-   global training_files
-   global training_files_gt
-   global validation_files
-   global validation_files_gt
 
-   for i in range(uu_num_train+uu_num_test):
+   for i in range(uu_num_train+uu_num_valid+uu_num_test):
       #print "data %d" %(i+1)
       img_name = ''
       if i < 10:
@@ -120,11 +125,18 @@ def slic_data():
       if i < uu_num_train:
          img = io.imread(training_files[i])
          gt_img = img_as_float(io.imread(training_files_gt[i]))
+         print "training"
          print i+1, training_files[i], training_files_gt[i]
-      else:
+      elif i >= uu_num_train and i < uu_num_train+uu_num_valid:
          img = io.imread(validation_files[i-uu_num_train])
          gt_img = img_as_float(io.imread(validation_files_gt[i-uu_num_train]))
+         print "validation"
          print i+1, validation_files[i-uu_num_train], validation_files_gt[i-uu_num_train]
+      elif i >= uu_num_train+uu_num_valid and i < uu_num_train+uu_num_valid+uu_num_test:
+         img = io.imread(testing_files[i-uu_num_train-uu_num_valid])
+         gt_img = img_as_float(io.imread(testing_files_gt[i-uu_num_train-uu_num_valid]))
+         print "testing"
+         print i+1, testing_files[i-uu_num_train-uu_num_valid], testing_files_gt[i-uu_num_train-uu_num_valid]
       #gt_img = img_as_float(io.imread('../data/training/gt_image_2/uu_road_0000' + img_name + '.png'))
       img_hsv = color.rgb2hsv(img)
       img_ycbcr = cv2.cvtColor(img,cv2.COLOR_BGR2YCR_CB)
@@ -226,7 +238,7 @@ def svm_run(svm_classifier):
    print "The support vectors lenght are:"
    print len(svm_classifier.support_vectors_)
 
-def svm_predict(case,svm_classifier):
+def svm_predict(svm_classifier):
    global images_train_hsv
    global gt_images_train
    global images_train_filtered
@@ -234,64 +246,52 @@ def svm_predict(case,svm_classifier):
    A = []
    b = []
 
-   if case == 1:
-      for i in range(uu_num_test):
-         img_name = i + uu_num_train
-         if img_name < 10:
-            img_name = '0' + str(img_name)
-         else:
-            img_name = str(img_name)
-         print "data %d " %(i+uu_num_train)
-         #Read test images as floats
-         img = img_as_float(io.imread('../data/training/image_2/uu_0000' + img_name + '.png'))
-         gt_img = img_as_float(io.imread('../data//training/gt_image_2/uu_road_0000' + img_name + '.png'))
-
-         #Create superpixels for test images
-         image_segment = slic(img, n_segments = numSegments, sigma = 5)
-         t, train_indices = np.unique(image_segment, return_index=True)
-         images_train_indices.append(train_indices)
-         image = np.reshape(img,(1,(img.shape[0]*img.shape[1]),3))
-         images_train.append([image[0][i] for i in train_indices])
-
-         #Create gt test image values index at train_indices and converted to 1 or 0
-         gt_image = np.reshape(gt_img, (1,(gt_img.shape[0]*gt_img.shape[1]),3))
-         gt_image = [1 if gt_image[0][i][2] > 0 else 0 for i in train_indices]
-         print "len of gt_image: %d with ones: %d" %(len(gt_image),gt_image.count(1))
-
-         gt_images_train.append(gt_image)
-
-      for i in range(uu_num_test):
-         for j in range(len(images_train_ycbcr[i])):
-            A.append(images_train[i][j])
-            b.append(gt_images_train[i][j])
-
-   else:
-      for i in range(uu_num_train,uu_num_train+uu_num_test):
-         for j in range(len(images_train_hsv[i])):
-            val = np.zeros(4)
-            val[0:3] = images_train_hsv[i][j]
-            val[3] = images_train_filtered[i][j]
-            A.append(val)
-            #A.append(images_train_hsv[i][j])
-            b.append(gt_images_train[i][j])
+   for i in range(uu_num_train,uu_num_train+uu_num_valid):
+      for j in range(len(images_train_hsv[i])):
+         val = np.zeros(4)
+         val[0:3] = images_train_hsv[i][j]
+         val[3] = images_train_filtered[i][j]
+         A.append(val)
+         #A.append(images_train_hsv[i][j])
+         b.append(gt_images_train[i][j])
 
    A = np.asarray(A)
    b = np.asarray(b)
    print "A.shape = %s, b.shape = %s" %(A.shape,b.shape)
-
+   print "validation results"
    predicted = svm_classifier.predict(A)
 
    #for i in range(len(gt_images_train)):
    #   for j in range(len(gt_images_train[i])):
    #      print "%d, %d" %(gt_images_train[i][j], predicted[j])
 
-   print("Classification report for classifier %s:\n%s\n" %(svm_classifier,metrics.classification_report(b,predicted)))
+   print("Classification report for classifier on validation %s:\n%s\n" %(svm_classifier,metrics.classification_report(b,predicted)))
+
+   A = []
+   b = []
+
+   for i in range(uu_num_train+uu_num_valid,uu_num_train+uu_num_valid+uu_num_test):
+      for j in range(len(images_train_hsv[i])):
+         val = np.zeros(4)
+         val[0:3] = images_train_hsv[i][j]
+         val[3] = images_train_filtered[i][j]
+         A.append(val)
+         #A.append(images_train_hsv[i][j])
+         b.append(gt_images_train[i][j])
+
+   A = np.asarray(A)
+   b = np.asarray(b)
+   print "A.shape = %s, b.shape = %s" %(A.shape,b.shape)
+   print "testing results"
+   predicted = svm_classifier.predict(A)
+   print("Classification report for classifier on testing %s:\n%s\n" %(svm_classifier,metrics.classification_report(b,predicted)))
 
 
 if __name__=="__main__":
    create_files()
    #weights = [0.8,1,1.2,1.4,1.6,1.8,2.0,2.4,2.6,3]
-   weights = [0.5,0.7]
+   #weights from precision recall graph
+   weights = [1.14]
    for w in weights:
       print "Running with weight w:%f" %w
       initialise_lists()
@@ -299,7 +299,7 @@ if __name__=="__main__":
       class_weight={0:1,1:w})
       slic_data()
       svm_run(svm_classifier)
-      svm_predict(0,svm_classifier)
+      svm_predict(svm_classifier)
    '''
    with open('svm_model.pkl','rb') as handle:
       svm_classifier = pickle.load(handle)
